@@ -652,7 +652,7 @@ int main()
                     }
                 }
             }
-            if (keyPress == 'm' && laserReady > 2) {
+            if (keyPress == 's' && laserReady > 2) {
                 for (x = 0; x < sizex; x = x+1) {
                     if ( smundo[x * sizey + sizey-1] == player) {
                         smundo[x * sizey + sizey-2] = playerLaser;
