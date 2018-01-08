@@ -120,7 +120,7 @@ int main()
     char world[sizey][sizex];
     char player = 'A';
     char playerLaser = '^';
-    char enemy = 'M';
+    char enemy = '*';
     char enemyLeader = 'V';
     char enemyShielded1 = 'O';
     char enemyShielded2 = '2';
@@ -141,7 +141,9 @@ int main()
 
     srand(time(NULL));    
 
+    while(1){
     /*welcome screen*/
+    clear();
     printw("\n \n        ¡Bienvenido! \n \n \n \n");
     refresh();
     napms(500);
@@ -154,7 +156,7 @@ int main()
     printw("   ¡Que empiece la batalla!.");
     refresh();
     napms(500);
-    printw("\n \n \n \n Ingrese la letra 'a' para seleccionar al atacante o 'd' para seleccionar al defensor.");
+    printw("\n \n \n \n Ingrese la letra 'a' para seleccionar al atacante o 'd' para seleccionar al defensor.\n");
     rol = getch();
     //printw(&rol);
     //refresh();
@@ -177,8 +179,9 @@ int main()
         smundo[1001] = 1;
         if (rol != 'a' && rol != 'd')//si el usuario ingresa otra letra
         {
-            rol = 'd'; //defensor        
+            rol = 'd'; //defensor            
         }        
+        smundo[1012] = rol;
         sem_unlink ("pSem"); //El sietema operativo destruye pSem si nadie lo esta utilizando
         int valueSemJugadores = 0;
         sem = sem_open ("pSem", O_CREAT | O_RDWR, 0644, valueSemJugadores);         
@@ -189,10 +192,14 @@ int main()
     {
         contJugadores++;
         smundo[1001] = 0;
-        if (rol != 'a' && rol != 'd')//si el usuario ingresa otra letra
+        if (smundo[1012] == 'd')//si el primer usuario seleccionó defensor
         {
             rol = 'a'; //atacante
         }  
+        else
+        {
+           rol = 'd'; //defensor
+        }
         sem = sem_open ("pSem", 0);         
         sem_post (sem); /* Up semaforo. V operation */                        
     }
@@ -268,13 +275,17 @@ int main()
     smundo[1002] = vidasd;//vidas defensor
     smundo[1003] = vidasa;//vidas atacante
     smundo[1004] = score;
+    //1008 1009 y 1010 para DekkerV5
+    smundo[1008] = 0; //Proceso1QuiereEntrar
+    smundo[1009] = 0; //Proceso2QuiereEntrar
+    smundo[1010] = 1; //Turno
 
     pthread_t thread;
     int interval = 5000;
     pthread_create(&thread, NULL, do_smth_periodically, &interval);
     
     /*Logica*/
-    while(currentEnemies > 0 && smundo[1000] == 1) {      
+    while(currentEnemies > 0 && smundo[1000] == 1) {
         int drop = 0;
         int enemySpeed = 1 + 10 * currentEnemies / totalEnemies;
         enemySpeed = 30;
@@ -297,12 +308,26 @@ int main()
             printw("\n");
         }
 
-        sem_wait (sem2);   /*Down semaforo. P operation */        
+        //sem_wait (sem2);   /*Down semaforo. P operation */        
 
-        
-        
-        
         if(rol == 'a'){
+            //Rol Atacante
+
+            //Inicio de algoritomo de DekkerV5                                  (DekkerV5)
+            smundo[1008] = 1; //Proceso1QuiereEntrar                            (DekkerV5)
+            while(smundo[1009] == 1) //Proceso2QuiereEntrar                     (DekkerV5)
+            {            
+                if(smundo[1010] != 1) //Turno <> 1                              (DekkerV5)
+                {
+                    smundo[1008] = 0; //P1QuiereEntrar = F                      (DekkerV5)
+                    while (smundo[1009] == 1){ //while P2QuiereEntrar Esperar   (DekkerV5)
+                        //Esperar
+                    }
+                }            
+            }
+            //Region critica        
+
+
 
             /*laser time*/
             for (x = 0; x < sizex; x ++) {
@@ -317,11 +342,12 @@ int main()
                             & smundo[x * sizey + y+1] != enemyShielded2
                             & smundo[x * sizey + y+1] != enemyShielded3
                             & smundo[x * sizey + y+1] != enemyShielded4
-                            & smundo[x * sizey + y+1] != enemyShielded5)){
+                            & smundo[x * sizey + y+1] != enemyShielded5
+                            & smundo[x * sizey + y+1] != player)){//Verifico que la casilla de abajo no sea el defensor
                             /*Bajar disparo*/
-                            if (smundo[x * sizey + y+1] != player) //Verifico que la casilla de abajo no sea el defensor
+                            if (y != sizey-1)
                             {
-                                smundo[x * sizey + y+1] = enemyLaser;                                
+                                smundo[x * sizey + y+1] = enemyLaser;
                             }
                             smundo[x * sizey + y] = ' ';
                         }
@@ -330,7 +356,8 @@ int main()
                             | smundo[x * sizey + y+1] == enemyShielded2
                             | smundo[x * sizey + y+1] == enemyShielded3
                             | smundo[x * sizey + y+1] == enemyShielded4
-                            | smundo[x * sizey + y+1] == enemyShielded5)){
+                            | smundo[x * sizey + y+1] == enemyShielded5
+                            | smundo[x * sizey + y+1] == player)){
                             smundo[x * sizey + y] = ' ';
                         }
                     }
@@ -579,8 +606,28 @@ int main()
                     }    
                 }
             }*/
+
+            //Fin de algoritomo de DekkerV5         (DekkerV5)  
+            smundo[1008] = 0; //P1QuiereEntrar = F  (DekkerV5)
+            smundo[1010] = 2; //Turno = 2           (DekkerV5)
         }
         else{
+            //Rol Defensor
+
+            //Inicio de algoritomo de DekkerV5                                  (DekkerV5)
+            smundo[1009] = 1; //Proceso2QuiereEntrar                            (DekkerV5)
+            while(smundo[1008] == 1) //Proceso1QuiereEntrar                     (DekkerV5)
+            {            
+                if(smundo[1010] != 2) //Turno <> 2                              (DekkerV5)
+                {
+                    smundo[1009] = 0; //P2QuiereEntrar = F                      (DekkerV5)
+                    while (smundo[1008] == 1){ //while P1QuiereEntrar Esperar   (DekkerV5)
+                        //Esperar
+                    }
+                }            
+            }
+            //Region critica      
+
             /*control player*/
             if(kbhit()){
                 keyPress = getch();
@@ -613,17 +660,23 @@ int main()
                     }
                 }
             }
+
+            //Fin de algoritomo de DekkerV5         (DekkerV5)  
+            smundo[1009] = 0; //P2QuiereEntrar = F  (DekkerV5)
+            smundo[1010] = 1; //Turno = 2           (DekkerV5)
         }
 
         i ++;
-        sem_post (sem2);           /* V operation */       
+        //sem_post (sem2);           /* V operation */ 
+        
+
         refresh();
         napms(50);
     }
      /*limpiar pantalla*/
     clear();
     if (smundo[1000] == 0) {
-        printw("\n \n \n \n \n \n               Game Over! \n \n \n \n \n");
+        printw("\n \n \n \n \n \n                    Game Over! \n \n \n");
         refresh();
         napms(1000);
         printw("\n \n               Puntaje defensor: %d", smundo[1004]);
@@ -644,11 +697,14 @@ int main()
    
 
     /* shared memory detach */
-        shmdt (shm);
-        shmctl (shmid, IPC_RMID, 0); //se limpia la memoria compartida
+    shmdt (shm);
+    shmctl (shmid, IPC_RMID, 0); //se limpia la memoria compartida
 
-        /* cleanup semaphores */
-        printf("sem_destroy return value:%d\n",sem_destroy (sem));
+    /* cleanup semaphores */
+    printf("sem_destroy return value:%d\n",sem_destroy (sem));
+    printf("sem_destroy return value:%d\n",sem_destroy (sem2));
+
+    }
     endwin();
 }
 
